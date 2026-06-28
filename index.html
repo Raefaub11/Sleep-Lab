@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sleep Lab">
+<title>Sleep Lab</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@700;800&display=swap');
+:root {
+  --bg:#070710;--surface:#0e0e1c;--card:#13131f;--border:#1c1c2e;--border2:#252538;
+  --deep:#818cf8;--rem:#e879f9;--light:#475569;--awake:#f59e0b;
+  --hrv:#34d399;--rhr:#38bdf8;--eff:#fb923c;
+  --text:#e2e8f0;--muted:#64748b;--dim:#334155;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px}
+.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,7,16,.95);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:100}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;border:none;background:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;cursor:pointer;transition:color .2s}
+.nav-btn.active{color:var(--deep)}
+.nav-btn svg{width:20px;height:20px}
+.page{position:fixed;inset:0;bottom:calc(58px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px 24px;display:none}
+.page.active{display:block}
+.eyebrow{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.page-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff;line-height:1.1}
+.page-sub{font-size:10px;color:var(--muted);margin-top:5px}
+.page-header{margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.card-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.stat-label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.stat-val{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;line-height:1}
+.stat-unit{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-left:2px}
+.stat-sub{font-size:9px;color:var(--muted);margin-top:4px}
+.night-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .15s}
+.night-row:last-child{border-bottom:none}
+.night-row:active{opacity:.6}
+.night-date{width:52px;font-size:10px;color:var(--muted);flex-shrink:0}
+.night-bars{flex:1;height:16px;background:rgba(255,255,255,.03);border-radius:4px;overflow:hidden;display:flex}
+.night-bar{height:100%}
+.night-stats{display:flex;gap:8px;flex-shrink:0}
+.night-stat{font-size:10px;text-align:right}
+.night-chevron{color:var(--dim);font-size:14px;flex-shrink:0}
+.excluded-row{opacity:.35}
+.exclude-tag{font-size:8px;padding:1px 5px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--awake);margin-left:4px;vertical-align:middle}
+.delta-pill{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;margin-left:4px}
+.delta-up{background:rgba(52,211,153,.15);color:#34d399}
+.delta-down{background:rgba(248,113,113,.15);color:#f87171}
+.delta-flat{background:rgba(100,116,139,.15);color:var(--muted)}
+.phase-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.phase-item:last-child{border-bottom:none}
+.phase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.phase-info{flex:1}
+.phase-name{font-size:12px;color:var(--text)}
+.phase-dates{font-size:9px;color:var(--muted);margin-top:2px}
+.phase-delete{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:4px}
+.upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:12px}
+.upload-zone:active,.upload-zone.drag{border-color:var(--deep);background:rgba(129,140,248,.05)}
+.upload-log{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:10px;color:var(--muted);line-height:1.8;min-height:60px;white-space:pre-wrap}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-end}
+.modal{background:var(--surface);border-top:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:20px 16px calc(20px + env(safe-area-inset-bottom));position:relative}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.modal-close{position:absolute;top:16px;right:16px;background:var(--border);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;margin-bottom:4px}
+.modal-sub{font-size:10px;color:var(--muted);margin-bottom:20px}
+.stage-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.stage-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.stage-name{width:44px;font-size:10px;color:var(--muted)}
+.stage-bar-track{flex:1;height:12px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden}
+.stage-bar-fill{height:100%;border-radius:3px}
+.stage-val{width:40px;text-align:right;font-size:10px;color:var(--text)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:block}
+.form-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:10px 12px;outline:none}
+.form-input:focus{border-color:var(--deep)}
+.color-row{display:flex;gap:8px;flex-wrap:wrap}
+.color-opt{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color .15s}
+.color-opt.selected{border-color:#fff}
+.btn{width:100%;padding:13px;border-radius:10px;border:none;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;cursor:pointer;letter-spacing:.05em}
+.btn-primary{background:var(--deep);color:#fff}
+.btn-ghost{background:var(--border);color:var(--text);margin-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted)}
+.legend-dot{width:8px;height:8px;border-radius:2px}
+.section-label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:8px 16px;font-size:11px;color:var(--text);z-index:300;transition:transform .3s ease;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+/* exclude chips */
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{padding:5px 12px;border-radius:20px;font-size:10px;border:1px solid var(--border2);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .15s;font-family:'DM Mono',monospace}
+.chip.active{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:var(--awake)}
+::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="page-header">
+    <div class="eyebrow">Sleep Lab</div>
+    <div class="page-title" id="home-title">Loading…</div>
+    <div class="page-sub" id="home-sub"></div>
+  </div>
+  <div class="stat-grid" id="home-stats"></div>
+  <div class="card">
+    <div class="card-label">Last 7 Nights — Deep & REM</div>
+    <canvas id="homeChart" height="80" style="width:100%;display:block;"></canvas>
+    <div class="legend" style="margin-top:8px;">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--deep)"></div>Deep</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--rem)"></div>REM</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">HRV — Last 14 Days</div>
+    <canvas id="hrvChart" height="70" style="width:100%;display:block;"></canvas>
+  </div>
+  <div class="card" id="home-phase-card"></div>
+</div>
+
+<!-- NIGHTS -->
+<div class="page" id="page-nights">
+  <div class="page-header">
+    <div class="eyebrow">Sleep Lab</div>
+    <div class="page-title">Nights</div>
+    <div class="page-sub" id="nights-sub"></div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="phase-filter-btns"></div>
+  <div class="card" style="padding:6px 14px;" id="nights-list"></div>
+</div>
+
+<!-- COMPARE -->
+<div class="page" id="page-compare">
+  <div class="page-header">
+    <div class="eyebrow">Sleep Lab</div>
+    <div class="page-title">Compare</div>
+    <div class="page-sub">Phase vs Phase</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+    <div><div class="form-label">Phase A</div><select class="form-input" id="compare-a" style="padding:8px 10px;"></select></div>
+    <div><div class="form-label">Phase B</div><select class="form-input" id="compare-b" style="padding:8px 10px;"></select></div>
+  </div>
+  <div id="compare-content"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <div class="eyebrow">Sleep Lab</div>
+    <div class="page-title">Settings</div>
+    <div class="page-sub">Phases · Data · Backup</div>
+  </div>
+  <div class="section-label">Protocol Phases</div>
+  <div class="card" style="padding:6px 14px;margin-bottom:8px;" id="phases-list"></div>
+  <button class="btn btn-ghost" onclick="openPhaseModal()" style="margin-bottom:20px;">+ Add Phase</button>
+
+  <div class="section-label">Import Health JSON</div>
+  <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+    <div style="font-size:28px;margin-bottom:8px;">📂</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Upload Health JSON</div>
+    <div style="font-size:10px;color:var(--muted);">Tap to select · new dates merge · duplicates overwrite</div>
+  </div>
+  <input type="file" id="file-input" accept=".json" style="display:none;" onchange="handleFileUpload(event)">
+  <div class="upload-log" id="upload-log">No uploads yet.</div>
+
+  <div class="section-label">Backup & Restore</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
+    <button class="btn" style="background:rgba(52,211,153,.12);color:var(--hrv);border:1px solid rgba(52,211,153,.25);margin-top:0;" onclick="exportBackup()">⬇ Export Backup</button>
+    <button class="btn" style="background:rgba(129,140,248,.12);color:var(--deep);border:1px solid rgba(129,140,248,.25);margin-top:0;" onclick="document.getElementById('restore-input').click()">⬆ Import Backup</button>
+  </div>
+  <input type="file" id="restore-input" accept=".json" style="display:none;" onchange="handleRestore(event)">
+
+  <div class="section-label">Storage</div>
+  <div class="card" id="storage-info"></div>
+
+  <div class="section-label" style="margin-top:24px;">Danger Zone</div>
+  <button class="btn btn-ghost" style="color:#f87171;border:1px solid rgba(248,113,113,.2);background:rgba(248,113,113,.05);" onclick="confirmReset()">Clear All Data</button>
+</div>
+
+<!-- NIGHT MODAL -->
+<div class="modal-overlay" id="night-modal" style="display:none;" onclick="closeNightModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="document.getElementById('night-modal').style.display='none'">✕</button>
+    <div class="modal-title" id="modal-date"></div>
+    <div class="modal-sub" id="modal-phase-label"></div>
+    <div id="modal-stages"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 10px;">
+      <div class="stat-card" style="padding:10px;"><div class="stat-label">Sleep HR</div><div class="stat-val" style="font-size:22px;" id="modal-shr">—</div><div class="stat-sub">bpm</div></div>
+      <div class="stat-card" style="padding:10px;"><div class="stat-label">RHR</div><div class="stat-val" style="font-size:22px;" id="modal-rhr">—</div><div class="stat-sub">bpm</div></div>
+      <div class="stat-card" style="padding:10px;"><div class="stat-label">HRV</div><div class="stat-val" style="font-size:22px;" id="modal-hrv">—</div><div class="stat-sub">ms</div></div>
+    </div>
+    <!-- Sleep efficiency -->
+    <div class="card" style="margin-bottom:10px;" id="modal-efficiency-card"></div>
+    <!-- Composition -->
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-label">Sleep Composition</div>
+      <div id="modal-composition"></div>
+    </div>
+    <!-- Exclude toggle -->
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-label">Flag This Night</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Flagged nights are excluded from phase averages</div>
+      <div class="chip-row" id="exclude-chips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PHASE MODAL -->
+<div class="modal-overlay" id="phase-modal" style="display:none;" onclick="closePhaseModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="document.getElementById('phase-modal').style.display='none'">✕</button>
+    <div class="modal-title">New Phase</div>
+    <div class="modal-sub" style="margin-bottom:16px;">Name, start date, vendor (optional)</div>
+    <div class="form-group">
+      <label class="form-label">Phase Name</label>
+      <input class="form-input" id="phase-name-input" placeholder="e.g. CJC/IPA — GlowAminos">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Start Date</label>
+      <input class="form-input" type="date" id="phase-start-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vendor / Notes (optional)</label>
+      <input class="form-input" id="phase-vendor-input" placeholder="e.g. Peptira vials 1-2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Color</label>
+      <div class="color-row" id="color-picker"></div>
+    </div>
+    <button class="btn btn-primary" onclick="savePhase()">Save Phase</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('phase-modal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('home',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+  </button>
+  <button class="nav-btn" onclick="showPage('nights',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Nights
+  </button>
+  <button class="nav-btn" onclick="showPage('compare',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Compare
+  </button>
+  <button class="nav-btn" onclick="showPage('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings
+  </button>
+</nav>
+
+<script>
+// ── CONSTANTS ──
+const STORAGE_KEY='sleeplab_nights';
+const PHASES_KEY='sleeplab_phases';
+const BACKUP_KEY='sleeplab_backup_ts';
+const PHASE_COLORS=['#818cf8','#34d399','#f472b6','#fb923c','#38bdf8','#a3e635','#fbbf24'];
+const EXCLUDE_TAGS=['Travel','Sick','Alcohol','Bad data','Deload','Stress'];
+
+const BASELINE_DATA={"2026-04-29":{"date":"2026-04-29","totalMin":240,"awake":5,"light":155,"deep":23,"rem":58,"sleepHR":57.9,"rhr":57,"hrv":94},"2026-05-01":{"date":"2026-05-01","totalMin":374,"awake":12,"light":174,"deep":55,"rem":132,"sleepHR":61.6,"rhr":52,"hrv":101},"2026-05-02":{"date":"2026-05-02","totalMin":360,"awake":20,"light":184,"deep":67,"rem":90,"sleepHR":56.8,"rhr":56,"hrv":102},"2026-05-03":{"date":"2026-05-03","totalMin":388,"awake":4,"light":214,"deep":63,"rem":107,"sleepHR":61.6,"rhr":55,"hrv":107},"2026-05-04":{"date":"2026-05-04","totalMin":391,"awake":34,"light":207,"deep":53,"rem":98,"sleepHR":60.2,"rhr":57,"hrv":93},"2026-05-05":{"date":"2026-05-05","totalMin":444,"awake":45,"light":218,"deep":67,"rem":115,"sleepHR":60.0,"rhr":61,"hrv":81},"2026-05-07":{"date":"2026-05-07","totalMin":371,"awake":11,"light":212,"deep":36,"rem":112,"sleepHR":60.2,"rhr":55,"hrv":95},"2026-05-08":{"date":"2026-05-08","totalMin":355,"awake":8,"light":225,"deep":38,"rem":85,"sleepHR":61.9,"rhr":56,"hrv":81},"2026-05-09":{"date":"2026-05-09","totalMin":312,"awake":23,"light":172,"deep":33,"rem":85,"sleepHR":58.9,"rhr":53,"hrv":92},"2026-05-10":{"date":"2026-05-10","totalMin":388,"awake":2,"light":192,"deep":100,"rem":94,"sleepHR":63.2,"rhr":56,"hrv":76},"2026-05-11":{"date":"2026-05-11","totalMin":347,"awake":15,"light":221,"deep":38,"rem":73,"sleepHR":61.0,"rhr":59,"hrv":105},"2026-05-12":{"date":"2026-05-12","totalMin":402,"awake":6,"light":252,"deep":36,"rem":108,"sleepHR":62.5,"rhr":58,"hrv":96},"2026-05-13":{"date":"2026-05-13","totalMin":344,"awake":6,"light":183,"deep":86,"rem":70,"sleepHR":61.0,"rhr":58,"hrv":96},"2026-05-14":{"date":"2026-05-14","totalMin":399,"awake":3,"light":250,"deep":54,"rem":92,"sleepHR":61.5,"rhr":58,"hrv":84},"2026-05-15":{"date":"2026-05-15","totalMin":380,"awake":13,"light":184,"deep":71,"rem":112,"sleepHR":62.4,"rhr":55,"hrv":75},"2026-05-16":{"date":"2026-05-16","totalMin":418,"awake":11,"light":186,"deep":41,"rem":83,"sleepHR":71.6,"rhr":69,"hrv":69},"2026-05-18":{"date":"2026-05-18","totalMin":357,"awake":19,"light":221,"deep":34,"rem":83,"sleepHR":64.6,"rhr":59,"hrv":90},"2026-05-19":{"date":"2026-05-19","totalMin":390,"awake":19,"light":232,"deep":49,"rem":90,"sleepHR":64.6,"rhr":60,"hrv":80},"2026-05-20":{"date":"2026-05-20","totalMin":346,"awake":27,"light":217,"deep":39,"rem":64,"sleepHR":61.8,"rhr":61,"hrv":85},"2026-05-21":{"date":"2026-05-21","totalMin":417,"awake":38,"light":249,"deep":56,"rem":75,"sleepHR":67.7,"rhr":57,"hrv":86},"2026-05-22":{"date":"2026-05-22","totalMin":416,"awake":17,"light":259,"deep":39,"rem":102,"sleepHR":66.1,"rhr":58,"hrv":85},"2026-05-23":{"date":"2026-05-23","totalMin":480,"awake":52,"light":220,"deep":105,"rem":103,"sleepHR":69.4,"rhr":61,"hrv":81},"2026-05-24":{"date":"2026-05-24","totalMin":317,"awake":2,"light":211,"deep":50,"rem":55,"sleepHR":65.6,"rhr":59,"hrv":92},"2026-05-25":{"date":"2026-05-25","totalMin":315,"awake":8,"light":202,"deep":39,"rem":67,"sleepHR":60.7,"rhr":55,"hrv":88},"2026-05-26":{"date":"2026-05-26","totalMin":482,"awake":34,"light":300,"deep":56,"rem":91,"sleepHR":59.7,"rhr":56,"hrv":93},"2026-05-27":{"date":"2026-05-27","totalMin":384,"awake":22,"light":240,"deep":42,"rem":80,"sleepHR":63.0,"rhr":58,"hrv":88},"2026-05-28":{"date":"2026-05-28","totalMin":454,"awake":10,"light":257,"deep":57,"rem":129,"sleepHR":66.2,"rhr":56,"hrv":84},"2026-05-29":{"date":"2026-05-29","totalMin":370,"awake":20,"light":213,"deep":43,"rem":94,"sleepHR":62.0,"rhr":58,"hrv":77},"2026-05-30":{"date":"2026-05-30","totalMin":338,"awake":91,"light":124,"deep":82,"rem":41,"sleepHR":59.6,"rhr":56,"hrv":86},"2026-05-31":{"date":"2026-05-31","totalMin":321,"awake":6,"light":198,"deep":33,"rem":84,"sleepHR":69.8,"rhr":55,"hrv":87},"2026-06-01":{"date":"2026-06-01","totalMin":380,"awake":8,"light":214,"deep":81,"rem":77,"sleepHR":60.3,"rhr":60,"hrv":90},"2026-06-02":{"date":"2026-06-02","totalMin":483,"awake":31,"light":182,"deep":39,"rem":95,"sleepHR":58.8,"rhr":53,"hrv":102},"2026-06-03":{"date":"2026-06-03","totalMin":378,"awake":16,"light":209,"deep":65,"rem":88,"sleepHR":57.2,"rhr":56,"hrv":89},"2026-06-04":{"date":"2026-06-04","totalMin":442,"awake":33,"light":234,"deep":63,"rem":113,"sleepHR":60.8,"rhr":57,"hrv":107},"2026-06-05":{"date":"2026-06-05","totalMin":463,"awake":22,"light":291,"deep":30,"rem":120,"sleepHR":65.0,"rhr":54,"hrv":101},"2026-06-06":{"date":"2026-06-06","totalMin":356,"awake":19,"light":188,"deep":48,"rem":102,"sleepHR":63.7,"rhr":59,"hrv":78},"2026-06-07":{"date":"2026-06-07","totalMin":487,"awake":61,"light":230,"deep":35,"rem":96,"sleepHR":58.8,"rhr":55,"hrv":110},"2026-06-08":{"date":"2026-06-08","totalMin":384,"awake":24,"light":200,"deep":72,"rem":88,"sleepHR":58.2,"rhr":52,"hrv":119},"2026-06-09":{"date":"2026-06-09","totalMin":532,"awake":18,"light":329,"deep":53,"rem":133,"sleepHR":62.7,"rhr":56,"hrv":96},"2026-06-10":{"date":"2026-06-10","totalMin":310,"awake":8,"light":192,"deep":50,"rem":60,"sleepHR":60.5,"rhr":58,"hrv":91},"2026-06-11":{"date":"2026-06-11","totalMin":440,"awake":17,"light":219,"deep":63,"rem":142,"sleepHR":63.9,"rhr":61,"hrv":87},"2026-06-12":{"date":"2026-06-12","totalMin":374,"awake":30,"light":210,"deep":54,"rem":80,"sleepHR":66.8,"rhr":58,"hrv":92},"2026-06-13":{"date":"2026-06-13","totalMin":416,"awake":42,"light":251,"deep":31,"rem":92,"sleepHR":67.6,"rhr":64,"hrv":90},"2026-06-14":{"date":"2026-06-14","totalMin":321,"awake":27,"light":192,"deep":48,"rem":54,"sleepHR":65.0,"rhr":57,"hrv":114},"2026-06-15":{"date":"2026-06-15","totalMin":349,"awake":9,"light":189,"deep":69,"rem":83,"sleepHR":62.0,"rhr":61,"hrv":98},"2026-06-16":{"date":"2026-06-16","totalMin":434,"awake":32,"light":194,"deep":74,"rem":135,"sleepHR":62.4,"rhr":61,"hrv":102},"2026-06-18":{"date":"2026-06-18","totalMin":376,"awake":17,"light":197,"deep":49,"rem":113,"sleepHR":65.3,"rhr":59,"hrv":92},"2026-06-20":{"date":"2026-06-20","totalMin":478,"awake":21,"light":247,"deep":68,"rem":143,"sleepHR":66.6,"rhr":58,"hrv":104},"2026-06-21":{"date":"2026-06-21","totalMin":312,"awake":5,"light":142,"deep":65,"rem":101,"sleepHR":63.9,"rhr":57,"hrv":93},"2026-06-22":{"date":"2026-06-22","totalMin":384,"awake":13,"light":240,"deep":46,"rem":85,"sleepHR":60.5,"rhr":57,"hrv":98},"2026-06-23":{"date":"2026-06-23","totalMin":460,"awake":21,"light":301,"deep":39,"rem":99,"sleepHR":63.5,"rhr":61,"hrv":81},"2026-06-24":{"date":"2026-06-24","totalMin":434,"awake":11,"light":256,"deep":73,"rem":94,"sleepHR":65.6,"rhr":61,"hrv":93},"2026-06-25":{"date":"2026-06-25","totalMin":456,"awake":66,"light":283,"deep":34,"rem":74,"sleepHR":61.1,"rhr":56,"hrv":89},"2026-06-27":{"date":"2026-06-27","totalMin":411,"awake":39,"light":226,"deep":56,"rem":91,"sleepHR":72.5,"rhr":61,"hrv":85}};
+
+const DEFAULT_PHASES=[
+  {id:'tesa',name:'Tesa',startDate:'2026-04-29',color:'#818cf8',vendor:''},
+  {id:'cjcipa',name:'CJC/IPA — Peptira',startDate:'2026-06-29',color:'#34d399',vendor:'Peptira vials 1-2'}
+];
+
+// ── STATE ──
+let nights={};
+let phases=[];
+let selectedPhaseFilter='all';
+let selectedColorIdx=1;
+let currentModalDate=null;
+
+// ── STORAGE ──
+function saveNights(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(nights))}catch(e){}}
+function loadNights(){
+  try{const s=localStorage.getItem(STORAGE_KEY);nights=s?JSON.parse(s):{}}catch(e){nights={}}
+  let changed=false;
+  for(const[k,v]of Object.entries(BASELINE_DATA)){if(!nights[k]){nights[k]=v;changed=true}}
+  if(changed)saveNights();
+}
+function savePhases(){try{localStorage.setItem(PHASES_KEY,JSON.stringify(phases))}catch(e){}}
+function loadPhases(){
+  try{const s=localStorage.getItem(PHASES_KEY);phases=s?JSON.parse(s):[]}catch(e){phases=[]}
+  if(!phases.length){phases=DEFAULT_PHASES.map(p=>({...p}));savePhases()}
+}
+
+// ── HELPERS ──
+function getPhaseForDate(d){
+  const sorted=[...phases].sort((a,b)=>b.startDate.localeCompare(a.startDate));
+  for(const p of sorted){if(d>=p.startDate)return p}
+  return null;
+}
+function isExcluded(n){return n.excludeTags&&n.excludeTags.length>0}
+function getNightsSorted(phaseId,includeExcluded=false){
+  let entries=Object.values(nights).sort((a,b)=>b.date.localeCompare(a.date));
+  if(phaseId&&phaseId!=='all'){entries=entries.filter(n=>{const p=getPhaseForDate(n.date);return p&&p.id===phaseId})}
+  if(!includeExcluded)entries=entries.filter(n=>!isExcluded(n));
+  return entries;
+}
+function getAllNightsSorted(phaseId){
+  let entries=Object.values(nights).sort((a,b)=>b.date.localeCompare(a.date));
+  if(phaseId&&phaseId!=='all'){entries=entries.filter(n=>{const p=getPhaseForDate(n.date);return p&&p.id===phaseId})}
+  return entries;
+}
+function avg(arr){if(!arr.length)return 0;return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)}
+function sleepEff(n){const asleep=n.deep+n.rem+n.light;const total=asleep+n.awake;return total>0?Math.round((asleep/total)*100):0}
+function phaseStats(phaseId){
+  const ns=getNightsSorted(phaseId);
+  if(!ns.length)return null;
+  return{
+    n:ns.length,
+    deep:avg(ns.map(n=>n.deep)),
+    rem:avg(ns.map(n=>n.rem)),
+    awake:avg(ns.map(n=>n.awake)),
+    hrv:avg(ns.filter(n=>n.hrv).map(n=>n.hrv)),
+    rhr:avg(ns.filter(n=>n.rhr).map(n=>n.rhr)),
+    total:avg(ns.map(n=>n.deep+n.rem+n.light)),
+    efficiency:avg(ns.map(n=>sleepEff(n)))
+  };
+}
+function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function formatDateShort(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'})}
+
+// ── NAV ──
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='home')renderHome();
+  if(id==='nights')renderNights();
+  if(id==='compare')renderCompare();
+  if(id==='settings')renderSettings();
+}
+
+// ── HOME ──
+function renderHome(){
+  const today=new Date().toISOString().split('T')[0];
+  const cp=getPhaseForDate(today)||phases[phases.length-1];
+  document.getElementById('home-title').textContent=cp?cp.name:'Sleep Lab';
+  document.getElementById('home-sub').textContent=cp?`Phase active since ${formatDate(cp.startDate)}`:'No active phase';
+  const stats=cp?phaseStats(cp.id):null;
+  const statsEl=document.getElementById('home-stats');
+  if(stats){
+    statsEl.innerHTML=`
+      <div class="stat-card"><div class="stat-label">Avg Deep</div><div class="stat-val" style="color:var(--deep)">${stats.deep}<span class="stat-unit">min</span></div><div class="stat-sub">${stats.n} nights</div></div>
+      <div class="stat-card"><div class="stat-label">Avg REM</div><div class="stat-val" style="color:var(--rem)">${stats.rem}<span class="stat-unit">min</span></div><div class="stat-sub">this phase</div></div>
+      <div class="stat-card"><div class="stat-label">Avg HRV</div><div class="stat-val" style="color:var(--hrv)">${stats.hrv}<span class="stat-unit">ms</span></div><div class="stat-sub">daily avg</div></div>
+      <div class="stat-card"><div class="stat-label">Sleep Eff</div><div class="stat-val" style="color:var(--eff)">${stats.efficiency}<span class="stat-unit">%</span></div><div class="stat-sub">avg efficiency</div></div>
+    `;
+  }
+  const pc=document.getElementById('home-phase-card');
+  pc.innerHTML='<div class="card-label">Phases</div>';
+  phases.forEach(p=>{
+    const s=phaseStats(p.id);
+    const isActive=cp&&p.id===cp.id;
+    pc.innerHTML+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-size:12px;color:${isActive?'#fff':'var(--muted)'};">${p.name}${isActive?` <span style="font-size:9px;color:${p.color};">● active</span>`:''}</div>
+        <div style="font-size:9px;color:var(--muted);">from ${formatDate(p.startDate)}${p.vendor?' · '+p.vendor:''} · ${s?s.n:0} nights</div>
+      </div>
+      ${s?`<div style="text-align:right;font-size:10px;color:var(--muted);">${s.deep}m deep<br>${s.efficiency}% eff</div>`:''}
+    </div>`;
+  });
+  requestAnimationFrame(()=>{drawHomeChart();drawHRVChart()});
+}
+
+function drawHomeChart(){
+  const canvas=document.getElementById('homeChart');
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-28,H=80;
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const ns=Object.values(nights).filter(n=>!isExcluded(n)).sort((a,b)=>a.date.localeCompare(b.date)).slice(-7);
+  if(!ns.length)return;
+  const maxV=Math.max(...ns.map(n=>Math.max(n.deep,n.rem)),120);
+  const pad={l:4,r:4,t:8,b:20};const bw=(W-pad.l-pad.r)/ns.length;
+  ns.forEach((n,i)=>{
+    const x=pad.l+i*bw;const bwi=bw*0.35;
+    const dh=((n.deep/maxV)*(H-pad.t-pad.b));
+    ctx.fillStyle='rgba(129,140,248,.8)';ctx.beginPath();ctx.roundRect(x+bw*.08,H-pad.b-dh,bwi,dh,2);ctx.fill();
+    const rh=((n.rem/maxV)*(H-pad.t-pad.b));
+    ctx.fillStyle='rgba(232,121,249,.8)';ctx.beginPath();ctx.roundRect(x+bw*.08+bwi+2,H-pad.b-rh,bwi,rh,2);ctx.fill();
+    ctx.fillStyle='#475569';ctx.font=`8px DM Mono`;ctx.textAlign='center';
+    ctx.fillText(formatDateShort(n.date),x+bw/2,H-4);
+  });
+}
+
+function drawHRVChart(){
+  const canvas=document.getElementById('hrvChart');if(!canvas)return;
+  const ns=Object.values(nights).filter(n=>n.hrv&&!isExcluded(n)).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14);
+  if(ns.length<2)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-28,H=70;
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const vals=ns.map(n=>n.hrv);
+  const minV=Math.min(...vals)-5,maxV=Math.max(...vals)+5,avgV=avg(vals);
+  const pad={l:4,r:4,t:6,b:6};const w=W-pad.l-pad.r,h=H-pad.t-pad.b;
+  const x=i=>pad.l+(i/(ns.length-1))*w;
+  const y=v=>pad.t+h-((v-minV)/(maxV-minV))*h;
+  ctx.strokeStyle='rgba(52,211,153,.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(pad.l,y(avgV));ctx.lineTo(pad.l+w,y(avgV));ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x(0),y(vals[0]));vals.forEach((v,i)=>i>0&&ctx.lineTo(x(i),y(v)));
+  ctx.lineTo(x(vals.length-1),H);ctx.lineTo(x(0),H);ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'rgba(52,211,153,.25)');g.addColorStop(1,'rgba(52,211,153,0)');
+  ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.moveTo(x(0),y(vals[0]));vals.forEach((v,i)=>i>0&&ctx.lineTo(x(i),y(v)));
+  ctx.strokeStyle='#34d399';ctx.lineWidth=1.5;ctx.stroke();
+}
+
+// ── NIGHTS ──
+function renderNights(){
+  const allNs=getAllNightsSorted('all');
+  const excCount=allNs.filter(n=>isExcluded(n)).length;
+  document.getElementById('nights-sub').textContent=`${allNs.length} nights · ${excCount} flagged`;
+  const filterEl=document.getElementById('phase-filter-btns');
+  filterEl.innerHTML='';
+  const allBtn=document.createElement('button');
+  allBtn.textContent='All';allBtn.className='btn';
+  const aActive=selectedPhaseFilter==='all';
+  allBtn.style.cssText=`padding:5px 12px;border-radius:20px;font-size:10px;width:auto;background:${aActive?'rgba(129,140,248,.2)':'var(--border)'};color:${aActive?'var(--deep)':'var(--muted)'};border:1px solid ${aActive?'rgba(129,140,248,.4)':'transparent'};`;
+  allBtn.onclick=()=>{selectedPhaseFilter='all';renderNights()};
+  filterEl.appendChild(allBtn);
+  phases.forEach(p=>{
+    const btn=document.createElement('button');btn.textContent=p.name;btn.className='btn';
+    const isA=selectedPhaseFilter===p.id;
+    btn.style.cssText=`padding:5px 12px;border-radius:20px;font-size:10px;width:auto;background:${isA?p.color+'33':'var(--border)'};color:${isA?p.color:'var(--muted)'};border:1px solid ${isA?p.color+'66':'transparent'};`;
+    btn.onclick=()=>{selectedPhaseFilter=p.id;renderNights()};
+    filterEl.appendChild(btn);
+  });
+  const listEl=document.getElementById('nights-list');listEl.innerHTML='';
+  const ns=getAllNightsSorted(selectedPhaseFilter);
+  if(!ns.length){listEl.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px;">No nights in this phase yet</div>';return}
+  ns.forEach(n=>{
+    const excluded=isExcluded(n);
+    const total=n.deep+n.rem+n.light+n.awake;
+    const deepPct=total>0?(n.deep/total)*100:0,remPct=total>0?(n.rem/total)*100:0;
+    const lightPct=total>0?(n.light/total)*100:0,awakePct=total>0?(n.awake/total)*100:0;
+    const eff=sleepEff(n);
+    const phase=getPhaseForDate(n.date);
+    const pColor=phase?phase.color:'#818cf8';
+    const row=document.createElement('div');
+    row.className='night-row'+(excluded?' excluded-row':'');
+    row.innerHTML=`
+      <div class="night-date" style="color:${excluded?'var(--dim)':'var(--muted)'};">
+        ${formatDate(n.date)}
+        ${excluded?`<span class="exclude-tag">${(n.excludeTags||[]).join(',')}</span>`:''}
+      </div>
+      <div class="night-bars">
+        <div class="night-bar" style="width:${deepPct}%;background:rgba(129,140,248,.8);"></div>
+        <div class="night-bar" style="width:${remPct}%;background:rgba(232,121,249,.7);"></div>
+        <div class="night-bar" style="width:${lightPct}%;background:rgba(71,85,105,.5);"></div>
+        <div class="night-bar" style="width:${awakePct}%;background:rgba(245,158,11,.4);"></div>
+      </div>
+      <div class="night-stats">
+        <div class="night-stat" style="color:var(--deep);">${n.deep}m</div>
+        <div class="night-stat" style="color:var(--eff);font-size:9px;">${eff}%</div>
+      </div>
+      <div class="night-chevron">›</div>
+    `;
+    row.onclick=()=>openNightModal(n);
+    listEl.appendChild(row);
+  });
+}
+
+// ── NIGHT MODAL ──
+function openNightModal(n){
+  currentModalDate=n.date;
+  const phase=getPhaseForDate(n.date);
+  const pColor=phase?phase.color:'#818cf8';
+  document.getElementById('modal-date').textContent=new Date(n.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('modal-phase-label').innerHTML=phase?`<span style="color:${pColor};">● ${phase.name}${phase.vendor?' · '+phase.vendor:''}</span>`:'';
+  document.getElementById('modal-shr').textContent=n.sleepHR||'—';
+  document.getElementById('modal-rhr').textContent=n.rhr||'—';
+  document.getElementById('modal-hrv').textContent=n.hrv||'—';
+  // Stages
+  const stagesEl=document.getElementById('modal-stages');
+  const total=n.deep+n.rem+n.light+n.awake;
+  [{label:'Deep',val:n.deep,color:'var(--deep)'},{label:'REM',val:n.rem,color:'var(--rem)'},{label:'Light',val:n.light,color:'var(--light)'},{label:'Awake',val:n.awake,color:'var(--awake)'}]
+  .forEach(s=>{stagesEl.innerHTML=(stagesEl.innerHTML||'')+`<div class="stage-row"><div class="stage-dot" style="background:${s.color};"></div><div class="stage-name">${s.label}</div><div class="stage-bar-track"><div class="stage-bar-fill" style="width:${total>0?(s.val/total*100):0}%;background:${s.color};opacity:.7;"></div></div><div class="stage-val">${s.val}m</div></div>`});
+  stagesEl.innerHTML=stagesEl.innerHTML||'';
+  // Efficiency
+  const eff=sleepEff(n);
+  const asleep=n.deep+n.rem+n.light;
+  const effColor=eff>=85?'#34d399':eff>=75?'#fb923c':'#f87171';
+  document.getElementById('modal-efficiency-card').innerHTML=`
+    <div class="card-label">Sleep Efficiency</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+      <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:${effColor};">${eff}%</div>
+      <div style="font-size:10px;color:var(--muted);">${asleep}m asleep ÷ ${total}m in bed</div>
+    </div>
+    <div style="height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;">
+      <div style="width:${eff}%;height:100%;background:${effColor};border-radius:3px;"></div>
+    </div>
+    <div style="font-size:9px;color:var(--muted);margin-top:5px;">${eff>=85?'Excellent':''}${eff>=75&&eff<85?'Good':''}${eff<75?'Below target — aim for 85%+':''}</div>
+  `;
+  // Composition
+  document.getElementById('modal-composition').innerHTML=`
+    <div style="height:20px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:10px;">
+      <div style="width:${total>0?n.deep/total*100:0}%;background:rgba(129,140,248,.8);"></div>
+      <div style="width:${total>0?n.rem/total*100:0}%;background:rgba(232,121,249,.7);"></div>
+      <div style="width:${total>0?n.light/total*100:0}%;background:rgba(71,85,105,.5);"></div>
+      <div style="width:${total>0?n.awake/total*100:0}%;background:rgba(245,158,11,.4);"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);">
+      <span>In bed: <span style="color:var(--text);">${Math.floor(total/60)}h ${total%60}m</span></span>
+      <span>Asleep: <span style="color:var(--text);">${asleep}m</span></span>
+    </div>
+  `;
+  // Exclude chips
+  const chipsEl=document.getElementById('exclude-chips');
+  chipsEl.innerHTML='';
+  EXCLUDE_TAGS.forEach(tag=>{
+    const active=(n.excludeTags||[]).includes(tag);
+    const chip=document.createElement('div');
+    chip.className='chip'+(active?' active':'');
+    chip.textContent=tag;
+    chip.onclick=()=>toggleExclude(n.date,tag);
+    chipsEl.appendChild(chip);
+  });
+  document.getElementById('night-modal').style.display='flex';
+}
+
+function toggleExclude(date,tag){
+  const n=nights[date];if(!n)return;
+  if(!n.excludeTags)n.excludeTags=[];
+  const idx=n.excludeTags.indexOf(tag);
+  if(idx>=0)n.excludeTags.splice(idx,1);
+  else n.excludeTags.push(tag);
+  saveNights();
+  // Refresh chips
+  const chipsEl=document.getElementById('exclude-chips');
+  chipsEl.querySelectorAll('.chip').forEach((chip,i)=>{
+    chip.classList.toggle('active',(n.excludeTags||[]).includes(EXCLUDE_TAGS[i]));
+  });
+  // Refresh night row dimming
+  renderNights();
+}
+
+function closeNightModal(e){if(e.target===document.getElementById('night-modal'))document.getElementById('night-modal').style.display='none'}
+
+// ── COMPARE ──
+function renderCompare(){
+  const sA=document.getElementById('compare-a'),sB=document.getElementById('compare-b');
+  [sA,sB].forEach((sel,idx)=>{
+    const cur=sel.value;
+    sel.innerHTML=phases.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    if(cur&&phases.find(p=>p.id===cur))sel.value=cur;
+    else sel.value=phases[idx<phases.length?idx:0]?.id||'';
+  });
+  sA.onchange=sB.onchange=buildCompare;
+  buildCompare();
+}
+
+function buildCompare(){
+  const idA=document.getElementById('compare-a').value,idB=document.getElementById('compare-b').value;
+  const pA=phases.find(p=>p.id===idA),pB=phases.find(p=>p.id===idB);
+  const sA=phaseStats(idA),sB=phaseStats(idB);
+  const el=document.getElementById('compare-content');
+  if(!pA||!sA){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:30px;font-size:11px;">No data yet.</div>';return}
+  const hasB=sB&&sB.n>0;
+  const metrics=[
+    {key:'deep',label:'Deep Sleep',unit:'min',higher:'better'},
+    {key:'rem',label:'REM Sleep',unit:'min',higher:'better'},
+    {key:'awake',label:'Awake Time',unit:'min',higher:'worse'},
+    {key:'efficiency',label:'Sleep Efficiency',unit:'%',higher:'better'},
+    {key:'hrv',label:'HRV',unit:'ms',higher:'better'},
+    {key:'rhr',label:'Resting HR',unit:'bpm',higher:'worse'},
+    {key:'total',label:'Total Sleep',unit:'min',higher:'better'},
+  ];
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+    <div style="padding:10px;background:var(--card);border:1px solid ${pA.color}44;border-radius:10px;">
+      <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:${pA.color};margin-bottom:4px;">${pA.name}</div>
+      <div style="font-size:10px;color:var(--muted);">${sA.n} nights${pA.vendor?' · '+pA.vendor:''}</div>
+    </div>
+    <div style="padding:10px;background:var(--card);border:1px solid ${pB?pB.color+'44':'var(--border)'};border-radius:10px;">
+      <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:${pB?pB.color:'var(--muted)'};margin-bottom:4px;">${pB?pB.name:'—'}</div>
+      <div style="font-size:10px;color:var(--muted);">${hasB?sB.n+' nights'+(pB.vendor?' · '+pB.vendor:''):'No data yet'}</div>
+    </div>
+  </div>`;
+  metrics.forEach(m=>{
+    const vA=sA[m.key]||0,vB=hasB?(sB[m.key]||0):null;
+    const diff=vB!==null?vB-vA:null;
+    const better=m.higher==='better'?diff>0:diff<0;
+    const dc=diff===null?'':(Math.abs(diff)<2?'delta-flat':(better?'delta-up':'delta-down'));
+    const ds=diff!==null?(diff>0?'+':'')+diff+m.unit:'';
+    el.innerHTML+=`<div class="card" style="margin-bottom:8px;">
+      <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">${m.label}</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;">
+        <div>
+          <div style="font-size:10px;color:${pA.color};margin-bottom:2px;">${pA.name}</div>
+          <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#fff;">${vA}<span style="font-size:12px;color:var(--muted);margin-left:2px;">${m.unit}</span></div>
+        </div>
+        ${vB!==null?`<div style="text-align:right;">
+          <div style="font-size:10px;color:${pB.color};margin-bottom:2px;">${pB.name}</div>
+          <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#fff;">${vB}<span style="font-size:12px;color:var(--muted);margin-left:2px;">${m.unit}</span>${ds?`<span class="delta-pill ${dc}">${ds}</span>`:''}</div>
+        </div>`:`<div style="text-align:right;color:var(--dim);font-size:11px;">Waiting<br>for data…</div>`}
+      </div>
+      ${vB!==null?`<div style="margin-top:10px;height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;display:flex;"><div style="width:${Math.round(vA/(vA+vB)*100)}%;background:${pA.color};opacity:.7;"></div><div style="flex:1;background:${pB.color};opacity:.7;"></div></div>`:''}
+    </div>`;
+  });
+}
+
+// ── SETTINGS ──
+function renderSettings(){
+  const plist=document.getElementById('phases-list');plist.innerHTML='';
+  if(!phases.length){plist.innerHTML='<div style="padding:12px;color:var(--muted);font-size:11px;">No phases yet</div>'}
+  phases.forEach(p=>{
+    const s=phaseStats(p.id);
+    const item=document.createElement('div');item.className='phase-item';
+    item.innerHTML=`<div class="phase-dot" style="background:${p.color};"></div>
+      <div class="phase-info">
+        <div class="phase-name">${p.name}</div>
+        <div class="phase-dates">From ${formatDate(p.startDate)}${p.vendor?' · '+p.vendor:''} · ${s?s.n:0} nights</div>
+      </div>
+      <button class="phase-delete" onclick="deletePhase('${p.id}')">✕</button>`;
+    plist.appendChild(item);
+  });
+  const totalNights=Object.keys(nights).length;
+  const excCount=Object.values(nights).filter(n=>isExcluded(n)).length;
+  const dates=Object.keys(nights).sort();
+  const dateRange=totalNights?`${formatDate(dates[0])} – ${formatDate(dates[dates.length-1])}`:'—';
+  const lastBackup=localStorage.getItem(BACKUP_KEY);
+  document.getElementById('storage-info').innerHTML=`
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--muted);font-size:10px;">Total nights</span><span style="font-size:10px;">${totalNights}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--muted);font-size:10px;">Flagged (excluded)</span><span style="font-size:10px;">${excCount}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--muted);font-size:10px;">Date range</span><span style="font-size:10px;">${dateRange}</span></div>
+    <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);font-size:10px;">Last backup</span><span style="font-size:10px;">${lastBackup||'Never'}</span></div>
+  `;
+  const lastUpload=localStorage.getItem('sleeplab_last_upload');
+  if(lastUpload)document.getElementById('upload-log').textContent=lastUpload;
+}
+
+// ── PHASE MODAL ──
+function openPhaseModal(){
+  const picker=document.getElementById('color-picker');picker.innerHTML='';
+  PHASE_COLORS.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className='color-opt'+(i===selectedColorIdx?' selected':'');d.style.background=c;
+    d.onclick=()=>{document.querySelectorAll('.color-opt').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');selectedColorIdx=i};
+    picker.appendChild(d);
+  });
+  document.getElementById('phase-start-input').value=new Date().toISOString().split('T')[0];
+  document.getElementById('phase-name-input').value='';
+  document.getElementById('phase-vendor-input').value='';
+  document.getElementById('phase-modal').style.display='flex';
+}
+function closePhaseModal(e){if(e.target===document.getElementById('phase-modal'))document.getElementById('phase-modal').style.display='none'}
+function savePhase(){
+  const name=document.getElementById('phase-name-input').value.trim();
+  const start=document.getElementById('phase-start-input').value;
+  const vendor=document.getElementById('phase-vendor-input').value.trim();
+  if(!name||!start){toast('Please fill in all fields');return}
+  phases.push({id:'phase_'+Date.now(),name,startDate:start,color:PHASE_COLORS[selectedColorIdx],vendor});
+  phases.sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  savePhases();document.getElementById('phase-modal').style.display='none';
+  renderSettings();toast(`"${name}" added`);
+}
+function deletePhase(id){
+  const p=phases.find(x=>x.id===id);if(!p)return;
+  if(confirm(`Delete phase "${p.name}"?`)){phases=phases.filter(x=>x.id!==id);savePhases();renderSettings();toast('Phase deleted')}
+}
+
+// ── UPLOAD ──
+function handleFileUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{try{ingestHealthJSON(JSON.parse(ev.target.result),file.name)}catch(err){logUpload(`❌ JSON parse error: ${err.message}`)}};
+  reader.readAsText(file);e.target.value='';
+}
+function ingestHealthJSON(raw,filename){
+  const hrData=raw.heartRate||[],sleepData=raw.sleep||[];
+  if(!sleepData.length){logUpload(`❌ No sleep data in ${filename}`);return}
+  const hrLookup={};hrData.forEach(h=>{hrLookup[h.date]={rhr:h.resting,hrv:h.variability}});
+  let added=0,updated=0;
+  sleepData.forEach(s=>{
+    try{
+      const sessionDate=new Date(s.start).toISOString().split('T')[0];
+      const totalMin=Math.round((new Date(s.end)-new Date(s.start))/60000);
+      const sm={1:0,2:0,3:0,4:0,5:0};
+      (s.data||[]).forEach(seg=>{const m=(new Date(seg.end)-new Date(seg.start))/60000;if(sm[seg.type]!==undefined)sm[seg.type]+=m});
+      const pulses=s.pulses||[];
+      const avgHR=pulses.length?parseFloat((pulses.reduce((a,b)=>a+b,0)/pulses.length).toFixed(1)):0;
+      const hrInfo=hrLookup[sessionDate]||{};
+      const existing=nights[sessionDate];
+      const session={
+        date:sessionDate,totalMin,
+        awake:Math.round(sm[2]),light:Math.round(sm[3]),deep:Math.round(sm[4]),rem:Math.round(sm[5]),
+        sleepHR:avgHR,rhr:hrInfo.rhr||0,hrv:hrInfo.hrv||0,
+        excludeTags:existing?.excludeTags||[]  // preserve existing flags
+      };
+      if(existing)updated++;else added++;
+      nights[sessionDate]=session;
+    }catch(err){}
+  });
+  saveNights();
+  const msg=`✅ ${filename}\n${added} new · ${updated} updated · Total: ${Object.keys(nights).length} nights`;
+  logUpload(msg);toast(`${added} new + ${updated} updated`);renderSettings();
+}
+function logUpload(msg){
+  const full=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  document.getElementById('upload-log').textContent=full;
+  localStorage.setItem('sleeplab_last_upload',full);
+}
+
+// ── BACKUP / RESTORE ──
+function exportBackup(){
+  const backup={nights,phases,exportedAt:new Date().toISOString(),version:2};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`sleeplab-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  const ts=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  localStorage.setItem(BACKUP_KEY,ts);
+  renderSettings();toast('Backup downloaded');
+}
+function handleRestore(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const backup=JSON.parse(ev.target.result);
+      if(!backup.nights||!backup.phases){toast('❌ Invalid backup file');return}
+      if(!confirm(`Restore backup from ${backup.exportedAt?.split('T')[0]||'unknown date'}?\nThis will replace all current data.`))return;
+      nights=backup.nights;phases=backup.phases;
+      saveNights();savePhases();
+      renderSettings();toast('Backup restored');
+    }catch(err){toast('❌ Could not read backup')}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+
+// ── DRAG & DROP ──
+const dz=document.getElementById('upload-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file&&file.name.endsWith('.json')){
+    const reader=new FileReader();
+    reader.onload=ev=>{try{ingestHealthJSON(JSON.parse(ev.target.result),file.name)}catch(err){logUpload(`❌ Error: ${err.message}`)}};
+    reader.readAsText(file);
+  }
+});
+
+// ── UTILS ──
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500)}
+function confirmReset(){
+  if(confirm('Clear ALL data? Cannot be undone.')){
+    [STORAGE_KEY,PHASES_KEY,BACKUP_KEY,'sleeplab_last_upload'].forEach(k=>localStorage.removeItem(k));
+    nights={};phases=[];init();toast('All data cleared');
+  }
+}
+
+// ── INIT ──
+function init(){loadNights();loadPhases();renderHome()}
+init();
+</script>
+</body>
+</html>
